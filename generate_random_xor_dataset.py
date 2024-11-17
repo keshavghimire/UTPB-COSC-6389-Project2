@@ -85,6 +85,7 @@ class NeuralNetwork:
                 loss = np.mean((self.a[-1] - y) ** 2)
                 print(f"Epoch {epoch}, Loss: {loss}")
 
+
 class NeuralNetworkApp:
     def __init__(self, root):
         self.root = root
@@ -112,11 +113,11 @@ class NeuralNetworkApp:
         ttk.Combobox(frame, textvariable=self.activation, values=["sigmoid", "tanh", "relu"]).grid(row=3, column=1)
 
         ttk.Button(frame, text="Generate Network", command=self.generate_network).grid(row=4, column=0, padx=5)
-        self.start_training_button = ttk.Button(frame, text="Start Training", command=self.start_training_with_dataset,
-                                                )
+        self.start_training_button = ttk.Button(frame, text="Start Training", command=self.start_training_with_dataset)
         self.start_training_button.grid(row=4, column=1, padx=5)
         ttk.Button(frame, text="Save Visualization", command=self.save_visualization).grid(row=4, column=2, padx=5)
         ttk.Button(frame, text="Load Dataset", command=self.load_dataset).grid(row=4, column=3, padx=5)
+        ttk.Button(frame, text="Save Final State", command=self.save_final_state).grid(row=5, column=1, padx=5)
 
         self.canvas = tk.Canvas(self.root, width=800, height=600, bg="white")
         self.canvas.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -153,6 +154,8 @@ class NeuralNetworkApp:
             print("Dataset has not been loaded yet!")
             return
 
+        self.training_completed = False
+
         def update_visualization():
             self.visualize_network()
 
@@ -160,8 +163,26 @@ class NeuralNetworkApp:
             if epoch < 1000:  # Train for 1000 epochs
                 self.network.train(self.X, self.y, epochs=1, learning_rate=0.01, update_callback=update_visualization)
                 self.root.after(10, train_step, epoch + 1)
+            else:
+                self.training_completed = True
+                self.display_training_complete()
 
         train_step()
+
+    def display_training_complete(self):
+        # Clear canvas and display a "Training Complete" banner
+        self.canvas.create_text(
+            self.canvas.winfo_width() / 2,
+            self.canvas.winfo_height() / 2,
+            text="Training Complete!",
+            font=("Arial", 24, "bold"),
+            fill="green"
+        )
+
+        # Display final loss
+        final_loss = np.mean((self.network.a[-1] - self.y) ** 2)
+        final_loss_label = ttk.Label(self.root, text=f"Final Loss: {final_loss:.6f}", font=("Arial", 12, "bold"))
+        final_loss_label.grid(row=2, column=0, pady=10)
 
     def generate_network(self):
         input_size = self.input_size.get()
@@ -202,7 +223,6 @@ class NeuralNetworkApp:
                 except (TypeError, ValueError):
                     activation = 0.5  # Fallback in case of errors
 
-                # Generate color based on activation value
                 node_color = f"#{int(activation * 255):02x}00{255 - int(activation * 255):02x}"
                 node_id = self.canvas.create_oval(x - 10, y - 10, x + 10, y + 10, fill=node_color)
                 self.canvas.tag_bind(node_id, "<Enter>",
@@ -216,16 +236,19 @@ class NeuralNetworkApp:
                     normalized_weight = abs(weight) / max(1, np.max(np.abs(self.network.weights[i])))
                     line_width = max(1, int(normalized_weight * 5))
                     line_color = f"#{255 - int(normalized_weight * 255):02x}{int(normalized_weight * 255):02x}00"
-                    line_id = self.canvas.create_line(node_start[0], node_start[1], node_end[0], node_end[1],
-                                                      fill=line_color, width=line_width)
-                    self.canvas.tag_bind(line_id, "<Enter>",
-                                         lambda e, txt=f"Weight: {weight:.2f}": self.show_tooltip(e, txt))
-                    self.canvas.tag_bind(line_id, "<Leave>", self.hide_tooltip)
+                    self.canvas.create_line(node_start[0], node_start[1], node_end[0], node_end[1],
+                                            fill=line_color, width=line_width)
 
     def save_visualization(self):
         file_path = filedialog.asksaveasfilename(defaultextension=".ps", filetypes=[("PostScript files", "*.ps")])
         if file_path:
             self.canvas.postscript(file=file_path)
+
+    def save_final_state(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".npz", filetypes=[("Numpy files", "*.npz")])
+        if file_path:
+            np.savez(file_path, weights=self.network.weights, biases=self.network.biases)
+            print(f"Final network state saved to {file_path}")
 
     def show_tooltip(self, event, text):
         self.tooltip = tk.Label(self.root, text=text, bg="yellow", font=("Arial", 8))
