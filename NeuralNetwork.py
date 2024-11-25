@@ -1,32 +1,26 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 import numpy as np
 import pandas as pd
 
-
+# Activation functions and derivatives
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
-
 
 def sigmoid_derivative(x):
     return x * (1 - x)
 
-
 def tanh(x):
     return np.tanh(x)
-
 
 def tanh_derivative(x):
     return 1 - x ** 2
 
-
 def relu(x):
     return np.maximum(0, x)
 
-
 def relu_derivative(x):
     return np.where(x > 0, 1, 0)
-
 
 class NeuralNetwork:
     def __init__(self, input_size, hidden_layers, output_size, activation):
@@ -82,7 +76,7 @@ class NeuralNetwork:
             if update_callback:
                 update_callback()
             if epoch % 100 == 0:
-                loss = np.mean((self.a[-1] - y) ** 2)
+                loss = np.mean((self.a[-1] - y) ** 2)  # MSE for regression
                 print(f"Epoch {epoch}, Loss: {loss}")
 
 class NeuralNetworkApp:
@@ -112,8 +106,7 @@ class NeuralNetworkApp:
         ttk.Combobox(frame, textvariable=self.activation, values=["sigmoid", "tanh", "relu"]).grid(row=3, column=1)
 
         ttk.Button(frame, text="Generate Network", command=self.generate_network).grid(row=4, column=0, padx=5)
-        self.start_training_button = ttk.Button(frame, text="Start Training", command=self.start_training_with_dataset,
-                                                )
+        self.start_training_button = ttk.Button(frame, text="Start Training", command=self.start_training_with_dataset)
         self.start_training_button.grid(row=4, column=1, padx=5)
         ttk.Button(frame, text="Save Visualization", command=self.save_visualization).grid(row=4, column=2, padx=5)
         ttk.Button(frame, text="Load Dataset", command=self.load_dataset).grid(row=4, column=3, padx=5)
@@ -125,15 +118,15 @@ class NeuralNetworkApp:
         file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if file_path:
             data = pd.read_csv(file_path)
-            X = data.iloc[:, :-1].values  # All columns except the last one as features
-            y = data.iloc[:, -1].values.reshape(-1, 1)  # Last column as target
+            X = data.drop(columns=["quality"]).values  # All columns except the 'quality' column
+            y = data["quality"].values.reshape(-1, 1)  # 'quality' as target
 
             # Normalize input features
             X = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
 
             # Update input size and output size based on the loaded data
             self.input_size.set(X.shape[1])
-            self.output_size.set(y.shape[1])
+            self.output_size.set(1)  # Output is always one (wine quality)
 
             # Generate network if not already initialized
             if not hasattr(self, 'network'):
@@ -144,6 +137,9 @@ class NeuralNetworkApp:
 
             print("Dataset loaded successfully")
             print(f"Input features: {X.shape[1]}, Output size: {y.shape[1]}")
+
+            # Success message
+            messagebox.showinfo("Success", "Dataset loaded successfully!")
 
     def start_training_with_dataset(self):
         if not hasattr(self, 'network'):
@@ -160,6 +156,9 @@ class NeuralNetworkApp:
             if epoch < 1000:  # Train for 1000 epochs
                 self.network.train(self.X, self.y, epochs=1, learning_rate=0.01, update_callback=update_visualization)
                 self.root.after(10, train_step, epoch + 1)
+            else:
+                # Display success message after training is completed
+                messagebox.showinfo("Success", "Training completed successfully!")
 
         train_step()
 
@@ -228,7 +227,7 @@ class NeuralNetworkApp:
             self.canvas.postscript(file=file_path)
 
     def show_tooltip(self, event, text):
-        self.tooltip = tk.Label(self.root, text=text, bg="yellow", font=("Arial", 8))
+        self.tooltip = tk.Label(self.root, text=text, bg="black", font=("Arial", 8))
         self.tooltip.place(x=event.x_root, y=event.y_root)
 
     def hide_tooltip(self, event=None):
